@@ -4,7 +4,7 @@ class Block:
 
 
 class BlockMetaData:
-	def __init__(self, id=-1, isfree=False, isassigned=False):
+	def __init__(self, id=-1, isfree=True, isassigned=False):
 		self.id = id
 		self.isfree = isfree
 		self.isassigned = isassigned
@@ -20,7 +20,7 @@ class FileSystem:
 		if(blockId < 0 or blockId >= 500):
 			print("Out of Index Error")
 			return
-		if(self.FileMetaData[blockId].isfree == False):
+		if(self.FileMetaData[blockId].isfree == True):
 			print("Not yet written")
 			return
 
@@ -44,30 +44,40 @@ class FileSystem:
 			return
 
 		if(blockId < 200):
-			self.diskA[blockId][0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.diskA[blockId].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
+			self.FileMetaData[blockId].isfree = False
 			# print("A writing")
 			return
 
 		if(blockId < 500):
 			# print("B writing")
 			self.diskB[blockId-200].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.FileMetaData[blockId].isfree = False
 			return
 
 
 
 def runtestcases():
-	filea = FileSystem(100)
-	A = bytearray(b'Aniket')
-	B = bytearray(10)
-	C = bytearray(6)
-	filea.write(213,A)
-	filea.read(313,B)
-	filea.read(213,C)
-	print(A)
+	fileA = FileSystem(100)
+	A = bytearray(b'Andaman')
+	B = bytearray(b'Nicobar')
+	X = bytearray(120)
+	C = bytearray(7)
+	D = bytearray(7)
+
+	fileA.write(13,A)
+	fileA.read(13,B)
 	print(B)
-	print(C)
+
+	fileA.write(329,C)
+	fileA.read(329,D)
+	print(D)
+
+	fileA.write(-12,A)
+	fileA.write(512,A)
+	fileA.write(12,X)
+	fileA.read(12,D)
+
 
 def main():
 	runtestcases()

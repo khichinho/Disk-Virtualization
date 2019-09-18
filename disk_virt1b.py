@@ -4,7 +4,7 @@ class Block:
 
 
 class BlockMetaData:
-	def __init__(self, id=-1, isfree=False, isassigned=False):
+	def __init__(self, id=-1, isfree=True, isassigned=False):
 		self.id = id
 		self.isfree = isfree
 		self.isassigned = isassigned
@@ -27,7 +27,7 @@ class FileSystem:
 		if(blockId < 0 or blockId >= 500):
 			print("Out of Index Error")
 			return False
-		if(self.FileMetaData[blockId].isfree == False):
+		if(self.FileMetaData[blockId].isfree == True):
 			print("Not yet written")
 			return False
 
@@ -50,13 +50,13 @@ class FileSystem:
 			return False
 
 		if(blockId < 200):
-			self.diskA[blockId][0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.diskA[blockId].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
+			self.FileMetaData[blockId].isfree = False
 			return True
 
 		if(blockId < 500):
 			self.diskB[blockId-200].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.FileMetaData[blockId].isfree = False
 			return True
 
 	def checkcontiguous(self,diskSize):
@@ -93,7 +93,7 @@ class FileSystem:
 			self.disks[diskId] = diskm
 
 		else:
-			print("handle fragmentation")
+			# print("handle fragmentation")
 			diskm = Disk(diskSize)
 			index = 0
 			for i in range(500):
@@ -149,41 +149,41 @@ class FileSystem:
 		self.write(physicalId,block_inf)
 		return True
 
-def runtestcases2():
+def runtestcases():
 	fileA = FileSystem(100)
 	fileA.CreateDisk(1,200)
-	# fileA.CreateDisk(1,100)
+	fileA.CreateDisk(1,100)
 	fileA.CreateDisk(2,100)
 	fileA.CreateDisk(3,100)
 	fileA.CreateDisk(4,100)
 	fileA.DeleteDisk(2)
 	fileA.DeleteDisk(4)
-	fileA.CreateDisk(5,200)
-	# fileA.DeleteDisk(10)
-	A = bytearray(b'virtualization')
-	fileA.writeBlock(5,190,A)
-	B = bytearray(20)
-	fileA.read(490,B)
-	fileA.writeBlock(3,290,A)
-	fileA.readBlock(3,12,A)
-	# print("Completed")
-	fileA.readBlock(5,20,B)
-	print(B)
-	# fileA.CreateDisk(6,1)
+	fileA.CreateDisk(5,150)
+	fileA.CreateDisk(6,200)
+	# disks - [1,200],[3,100],[5,150]
 
-def runtestcases1():
-	fileA = FileSystem(100)
-	A = bytearray(b'Aniket')
-	B = bytearray(10)
-	C = bytearray(6)
-	fileA.write(213,A)
-	fileA.read(313,B)
-	fileA.read(213,C)
-	print(A)
+	A = bytearray(b'virtualization')
+	B = bytearray(14)
+	C = bytearray(b'cricket-bat/ball')
+	D = bytearray(16)
+	E = bytearray(b'Jennifer')
+
+	fileA.writeBlock(5,120,A)
+	fileA.readBlock(5,120,B)
 	print(B)
-	print(C)
+
+	fileA.writeBlock(3,40,C)
+	fileA.readBlock(3,40,D)
+	print(D)
+
+	fileA.writeBlock(1,211,E)
+	fileA.writeBlock(2,10,A)
+	fileA.readBlock(2,10,B)
+	fileA.readBlock(1,10,B)
+	print(B)
+
 def main():
-	runtestcases2()
+	runtestcases()
 
 if __name__ == "__main__":
 		main()

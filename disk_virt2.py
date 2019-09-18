@@ -1,9 +1,10 @@
+import random
 class Block:
 	def __init__(self,blocksize):
 		self.data = bytearray(blocksize)
 
 class BlockMetaData:
-	def __init__(self, id=-1, isfree=False, isassigned=False,iscorrupted=False):
+	def __init__(self, id=-1, isfree=True, isassigned=False,iscorrupted=False):
 		self.id = id
 		self.isfree = isfree
 		self.isassigned = isassigned
@@ -28,7 +29,7 @@ class FileSystem:
 		if(blockId < 0 or blockId >= 500):
 			print("Out of Index Error")
 			return False
-		if(self.FileMetaData[blockId].isfree == False):
+		if(self.FileMetaData[blockId].isfree == True):
 			print("Not yet written")
 			return False
 
@@ -51,13 +52,13 @@ class FileSystem:
 			return False
 
 		if(blockId < 200):
-			self.diskA[blockId][0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.diskA[blockId].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
+			self.FileMetaData[blockId].isfree = False
 			return True
 
 		if(blockId < 500):
 			self.diskB[blockId-200].data[0:len(block_inf)] = block_inf[0:len(block_inf)]
-			self.FileMetaData[blockId].isfree = True
+			self.FileMetaData[blockId].isfree = False
 			return True
 
 	def checkcontiguous(self,diskSize):
@@ -80,7 +81,7 @@ class FileSystem:
 
 	def CreateDisk(self,diskId,diskSize):
 		# check contiguous
-		if(diskId in self.disks):
+		if(diskId in self.diskprimary):
 			print("Given DiskID already exists")
 			return False
 
@@ -98,17 +99,18 @@ class FileSystem:
 			return True
 
 		else:
-			print("handle fragmentation")
+			# print("Handle fragmentation")
 			diskp = Disk(diskSize)
 			disks = Disk(diskSize)
 			index = 0
+			i = 0
 			for i in range(500):
 				if(self.FileMetaData[i].isassigned == False):
 					diskp.blockaddr[index] = i
 					index += 1
 					if(index == diskSize):
 						break
-			for i in range(500):
+			for i in range(i+1,500):
 				if(self.FileMetaData[i].isassigned == False):
 					disks.blockaddr[index-diskSize] = i
 					index += 1
@@ -130,7 +132,7 @@ class FileSystem:
 			return True
 
 	def DeleteDisk(self,diskId):
-		if(diskId not in self.disks):
+		if(diskId not in self.diskprimary):
 			print("Given Disk does not exist")
 			return False
 
@@ -150,15 +152,15 @@ class FileSystem:
 
 	def findEmptyloc(self):
 		for i in range(500):
-			if(self.FileMetaData.isassigned == False and self.FileMetaData.iscorrupted == False):
+			if(self.FileMetaData[i].isassigned == False and self.FileMetaData[i].iscorrupted == False):
 				return i
 		return -1
 
 	def readBlock(self,diskId,blockId,block_inf):
-		if(diskId not in self.disks):
+		if(diskId not in self.diskprimary):
 			print("Disk of given Id doesn't exist")
 			return False
-		if(blockId < 0 or blockId >= self.disks[diskId].diskSize):
+		if(blockId < 0 or blockId >= self.diskprimary[diskId].diskSize):
 			print("Accessing out of index Block Id")
 			return False
 
@@ -166,21 +168,27 @@ class FileSystem:
 		primaryId = self.diskprimary[diskId].blockaddr[blockId]
 		if(self.FileMetaData[primaryId].iscorrupted == False):
 			self.read(primaryId,block_inf)
+			# print("primary not corrupted")
 			return True
 		else:
 			secondaryId = self.disksecondary[diskId].blockaddr[blockId]
 			if(self.FileMetaData[secondaryId].iscorrupted):
 				print("Both replicas corrupted")
+				# print("Can't fetch correct block data")
 				return False
+			# print("primary corrupted")
 			self.read(secondaryId,block_inf)
 			emptyloc = self.findEmptyloc()
 			self.diskprimary[diskId].blockaddr[blockId] = emptyloc
 			self.FileMetaData[emptyloc].isassigned = True
 			self.FileMetaData[emptyloc].id = diskId
+			copy = bytearray(self.blocksize)
+			self.read(secondaryId,copy)
+			self.write(emptyloc,copy)
 
 
 	def writeBlock(self,diskId,blockId,block_inf):
-		if(diskId not in self.disks):
+		if(diskId not in self.diskprimary):
 			print("Disk of given Id doesn't exist")
 			return False
 		if(blockId < 0 or blockId >= self.diskprimary[diskId].diskSize):
@@ -208,6 +216,69 @@ class FileSystem:
 			self.FileMetaData[emptyloc].isassigned = True
 			self.FileMetaData[emptyloc].id = diskId
 		return True
+
+	def corruptRandom(self,diskId,blockId,isprimary):
+		if(random.randint(0,100)<10):
+			if(isprimary):
+				physicalId = self.diskprimary[diskId].blockaddr[blockId]
+			else:
+				physicalId = self.disksecondary[diskId].blockaddr[blockId]
+			self.FileMetaData[physicalId].iscorrupted = True
+			return True
+		return False
+
+	def corrupt_surely(self,diskId,blockId,isprimary):
+		if(isprimary):
+			physicalId = self.diskprimary[diskId].blockaddr[blockId]
+		else:
+			physicalId = self.disksecondary[diskId].blockaddr[blockId]
+		self.FileMetaData[physicalId].iscorrupted = True
+
+def runtestcases():
+	fileA = FileSystem(100)
+	fileA.CreateDisk(1,120)
+	fileA.CreateDisk(2,30)
+	fileA.CreateDisk(3,50)
+	fileA.DeleteDisk(2)
+	fileA.CreateDisk(4,60)
+	fileA.DeleteDisk(3)
+	# print(fileA.checkcontiguous(100))
+	wd1 = bytearray(b'checkpoint')
+	wd2 = bytearray(b'snapshot')
+	wd3 = bytearray(b'screenshot')
+	wd4 = bytearray(b'roll back')
+	rd1 = bytearray(10)
+	rd2 = bytearray(8)
+	rd3 = bytearray(10)
+	rd4 = bytearray(9)
+
+# disks of (id,size) - (1,120), (4,60)
+
+# initial write, then read with no error
+	fileA.writeBlock(1,4,wd1)
+	fileA.readBlock(1,4,rd1)
+	print(rd1,"wd1 should be equals rd1")
+
+# check the location of physical block before and after corruption
+	print("Initial Primary Physical Id: ", fileA.diskprimary[1].blockaddr[4])
+	fileA.corrupt_surely(1,4,True)
+	fileA.readBlock(1,4,rd2)
+	print("After corruption, Primary Physical Id: ", fileA.diskprimary[1].blockaddr[4])
+	print(rd2)
+
+	fileA.writeBlock(4,10,wd3)
+	fileA.corrupt_surely(4,10,True)
+	fileA.corrupt_surely(4,10,False)
+	fileA.readBlock(4,10,rd3)
+	print("It should give and error\n",rd3)
+
+
+	fileA.writeBlock(4,25,wd4)
+	print("Initial Secondary Physical Id: ", fileA.disksecondary[4].blockaddr[25])
+	fileA.corrupt_surely(4,25,False)
+	fileA.readBlock(4,25,rd4)
+	print("After corruption, Secondary Physical Id: ", fileA.disksecondary[4].blockaddr[25])
+	print(rd4)
 
 def main():
 	runtestcases()
